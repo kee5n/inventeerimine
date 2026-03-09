@@ -1,9 +1,9 @@
 <?php
 
-function plugin_myplugins_install() {ks
+function plugin_inventeerimine_install() {
    return true;
 }
 
-function plugin_myplugins_uninstall() {
+function plugin_inventeerimine_uninstall() {
    return true;
 }

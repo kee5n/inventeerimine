@@ -1,9 +1,9 @@
 <?php
 
-class PluginMypluginsMenu extends CommonGLPI {
+class PluginInventeerimineMenu extends CommonGLPI {
 
    static function getMenuName() {
-      return __('Inventeerimine', 'myplugins');
+      return __('Inventeerimine', 'inventeerimine');
    }
 
    static function getMenuContent() {
