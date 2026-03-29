@@ -4,6 +4,7 @@ Session::checkLoginUser();
 
 Html::header("Inventeeritud varad raport", $_SERVER['PHP_SELF'], "management", "report");
 
+// Kuupäevad
 $start_date_str = $_GET['start_date'] ?? date("Y-01-01");
 $end_date_str   = $_GET['end_date'] ?? date("Y-m-d");
 $type_filter    = $_GET['type'] ?? '';
@@ -11,7 +12,7 @@ $type_filter    = $_GET['type'] ?? '';
 $start_date = strtotime($start_date_str);
 $end_date   = strtotime($end_date_str);
 
-// Varad
+// Vara tüübid
 $asset_types = [
     'Computer',
     'Monitor',
@@ -24,7 +25,6 @@ $asset_types = [
     'Enclosure',
     'PDU'
 ];
-
 
 // Filtri vorm
 echo "<form method='get' class='mb-4'>";
@@ -45,36 +45,42 @@ foreach ($asset_types as $type_option) {
 }
 
 echo "</select> ";
-
 echo "<button type='submit' class='btn btn-primary'>Filtreeri</button>";
 echo "</form>";
 
 
+// Komentaari lugemine
 $notepad = new Notepad();
 
-$notes = $notepad->find([
-    'content' => ['LIKE', '%Inventuur teostatud:%']
-]);
+// VÕTAME KÕIK (GLPI-s kindel variant)
+$notes = $notepad->find([]);
 
 $latest = [];
 
-foreach ($notes as $id => $note) {
+foreach ($notes as $note) {
 
+    // Tüübi filter
     if (!empty($type_filter) && $note['itemtype'] !== $type_filter) {
         continue;
     }
 
-    // Võtame notes komentaari kuupäeva mille on teinud search.php
-    if (preg_match('/Inventuur teostatud: (\d{2}\.\d{2}\.\d{4})/', $note['content'], $matches)) {
+    // Otsime mõlemat teksti
+    if (preg_match('/(Inventuur teostatud|Uus inventeeritud vara lisatud):\s*(\d{2}\.\d{2}\.\d{4})/', $note['content'], $matches)) {
 
-        $note_date = strtotime(str_replace('.', '-', $matches[1]));
+        $note_date = strtotime(str_replace('.', '-', $matches[2]));
 
+        if (!$note_date) {
+            continue;
+        }
+
+        // Kuupäeva filter
         if ($note_date < $start_date || $note_date > $end_date) {
             continue;
         }
 
         $key = $note['itemtype'] . '_' . $note['items_id'];
 
+        // Võtame VIIMASE kuupäeva
         if (!isset($latest[$key]) || $note_date > $latest[$key]['note_date']) {
             $latest[$key] = [
                 'note' => $note,
@@ -103,18 +109,20 @@ foreach ($latest as $data) {
     if (class_exists($note['itemtype'])) {
 
         $item = new $note['itemtype']();
-        $item->getFromDB($note['items_id']);
 
-        $name = htmlspecialchars($item->fields['name'] ?? '');
-        $inv_code = htmlspecialchars($item->fields['otherserial'] ?? '');
-        $type_label = $item->getTypeName(1);
+        if ($item->getFromDB($note['items_id'])) {
 
-        echo "<tr>
-            <td>$name</td>
-            <td>$type_label</td>
-            <td>$inv_code</td>
-            <td>$date</td>
-        </tr>";
+            $name = htmlspecialchars($item->fields['name'] ?? '');
+            $inv_code = htmlspecialchars($item->fields['otherserial'] ?? '');
+            $type_label = $item->getTypeName(1);
+
+            echo "<tr>
+                <td>$name</td>
+                <td>$type_label</td>
+                <td>$inv_code</td>
+                <td>$date</td>
+            </tr>";
+        }
     }
 }
 
